@@ -1,6 +1,7 @@
 import cv2
 import time
 from emailing import send_email
+import glob
 
 # Create a camera object
 video = cv2.VideoCapture(0)
@@ -12,6 +13,7 @@ first_frame = None
 # This list is used to find the moment when the object gets out from the camera
 # to use this moment to send the email
 status_list = []
+count = 1
 
 while True:
     # While there is no object at the video, the status is 0
@@ -19,6 +21,7 @@ while True:
     # The read method returns the state of the video (True or False) and the
     # frame, which is a NumPy matrix
     check, frame = video.read()
+
     # Take the actual frame and transform into grayscale to reduce the matrices
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     # Take the gray frame and blurs it to reduce the noise and the precision
@@ -47,7 +50,7 @@ while True:
     for contour in contours:
         # If the contour area is less than 12500, it is too small to be
         # considered as object. That removes the light spots
-        if cv2.contourArea(contour) < 12500:
+        if cv2.contourArea(contour) < 13500:
             continue
 
         # The function returns the measures of a rectangle that covers the
@@ -56,13 +59,18 @@ while True:
         rectangle = cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
         if rectangle.any():
             status = 1
+            cv2.imwrite(f"images/{count}.png", frame)
+            count += 1
+            all_images = glob.glob("images/*.png")
+            index = int(len(all_images) / 2)
+            image_with_object = all_images[index]
 
     # Creates a list of 2 items to identify when the status change from 1 to 0,
     # and this moment the object got out of the camera
     status_list.append(status)
     status_list = status_list[-2:]
     if status_list[0] == 1 and status_list[1] == 0:
-        send_email()
+        send_email(image_with_object)
 
     cv2.imshow("Video", frame)
 
