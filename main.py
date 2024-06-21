@@ -2,6 +2,16 @@ import cv2
 import time
 from emailing import send_email
 import glob
+import os
+from threading import Thread
+
+
+# Function to clean the folder of the images that the app got
+def clean_folder():
+    images = glob.glob("images/*.png")
+    for image in images:
+        os.remove(image)
+
 
 # Create a camera object
 video = cv2.VideoCapture(0)
@@ -50,7 +60,7 @@ while True:
     for contour in contours:
         # If the contour area is less than 12500, it is too small to be
         # considered as object. That removes the light spots
-        if cv2.contourArea(contour) < 13500:
+        if cv2.contourArea(contour) < 12500:
             continue
 
         # The function returns the measures of a rectangle that covers the
@@ -70,7 +80,16 @@ while True:
     status_list.append(status)
     status_list = status_list[-2:]
     if status_list[0] == 1 and status_list[1] == 0:
-        send_email(image_with_object)
+        # Using threading to remove the delay of the function send_email, to
+        # avoid that the function clean_folder occurs before the execution of
+        # the send_email function
+        email_thread = Thread(target=send_email, args=(image_with_object, ))
+        email_thread.daemon = True
+
+        clean_thread = Thread(target=clean_folder)
+        clean_thread.daemon = True
+
+        email_thread.start()
 
     cv2.imshow("Video", frame)
 
@@ -80,3 +99,5 @@ while True:
         break
 
 video.release()
+
+clean_thread.start()
